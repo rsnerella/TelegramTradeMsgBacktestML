@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-dark-border;
+  }
+  body {
+    @apply bg-dark-bg text-gray-200 antialiased;
+  }
+  html, body, #root {
+    @apply h-full w-full;
+  }
+}
