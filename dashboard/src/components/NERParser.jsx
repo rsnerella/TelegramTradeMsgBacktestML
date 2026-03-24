@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Bot, Sparkles, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Bot, Sparkles, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { nerMessages } from '../data/mockData';
+import { classifyMessage } from '../api/ner';
 
 const entityColors = {
   STOCK: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/40' },
@@ -20,6 +21,8 @@ const confidenceLevels = {
 export default function NERParser() {
   const [selectedMessage, setSelectedMessage] = useState(nerMessages[0]);
   const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const renderHighlightedMessage = (message) => {
     let highlightedText = [];
@@ -67,65 +70,73 @@ export default function NERParser() {
     return confidenceLevels.low;
   };
 
-  const parseNewMessage = () => {
-    // Simulate NER parsing
-    const parseResult = {
-      id: Date.now(),
-      rawMessage: newMessage,
-      entities: [],
-      timestamp: new Date().toISOString(),
-      channel: 'Manual',
-      processed: true,
-    };
+  const parseNewMessage = async () => {
+    setIsLoading(true);
+    setError(null);
 
-    // Simple regex-based parsing for demo
-    const buySellMatch = newMessage.match(/(BUY|SELL)/i);
-    if (buySellMatch) {
-      parseResult.entities.push({
-        type: 'ACTION',
-        text: buySellMatch[0].toUpperCase(),
-        confidence: 0.95,
-        start: buySellMatch.index,
-        end: buySellMatch.index + buySellMatch[0].length,
-      });
+    try {
+      const result = await classifyMessage(newMessage);
+
+      // Parse the API response
+      const sentence = JSON.parse(result.sentence);
+      const sentenceClass = JSON.parse(result.sentence_class);
+      const sentenceClassName = JSON.parse(result.sentence_class_name);
+
+      // Build entities from API response
+      const entities = [];
+      let currentPos = 0;
+
+      for (let i = 0; i < sentence.length; i++) {
+        const word = sentence[i];
+        const className = sentenceClassName[i];
+
+        if (className && className !== '') {
+          const startPos = newMessage.indexOf(word, currentPos);
+          if (startPos !== -1) {
+            entities.push({
+              type: mapClassNameToEntityType(className),
+              text: word,
+              confidence: 0.85,
+              start: startPos,
+              end: startPos + word.length,
+            });
+            currentPos = startPos + word.length;
+          }
+        }
+      }
+
+      const parseResult = {
+        id: Date.now(),
+        rawMessage: newMessage,
+        entities,
+        timestamp: new Date().toISOString(),
+        channel: 'API',
+        processed: true,
+      };
+
+      setSelectedMessage(parseResult);
+      setNewMessage('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const stockMatch = newMessage.match(/[A-Z]{2,}/g);
-    stockMatch?.forEach((stock) => {
-      if (stock !== 'BUY' && stock !== 'SELL' && stock !== 'SL' && stock !== 'ABOVE' && stock !== 'BELOW') {
-        parseResult.entities.push({
-          type: 'STOCK',
-          text: stock,
-          confidence: 0.88,
-          start: newMessage.indexOf(stock),
-          end: newMessage.indexOf(stock) + stock.length,
-        });
-      }
-    });
-
-    const priceMatches = [...newMessage.matchAll(/\d+(?:\.\d+)?/g)];
-    let priceIndex = 0;
-    priceMatches.forEach((match) => {
-      const price = parseFloat(match[0]);
-      if (price > 10 && price < 50000) {
-        let type = 'ENTRY';
-        if (newMessage.toLowerCase().includes('sl') && priceIndex === 1) type = 'SL';
-        else if (priceIndex === 1) type = 'TARGET';
-        else if (priceIndex >= 2) type = 'TARGET';
-
-        parseResult.entities.push({
-          type,
-          text: match[0],
-          confidence: 0.85,
-          start: match.index,
-          end: match.index + match[0].length,
-        });
-        priceIndex++;
-      }
-    });
-
-    setSelectedMessage(parseResult);
-    setNewMessage('');
+  const mapClassNameToEntityType = (className) => {
+    const mapping = {
+      'symbol': 'STOCK',
+      'btst': 'ACTION',
+      'delivery': 'ACTION',
+      'enter': 'ENTRY',
+      'exit': 'ACTION',
+      'exit2': 'ACTION',
+      'exit3': 'ACTION',
+      'intraday': 'ACTION',
+      'sl': 'SL',
+      'momentum': 'CONFIDENCE',
+    };
+    return mapping[className] || 'ACTION';
   };
 
   return (
@@ -211,12 +222,26 @@ TARGET 2750"
             />
             <button
               onClick={parseNewMessage}
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || isLoading}
               className="w-full mt-3 bg-accent-indigo hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
-              <Sparkles className="w-4 h-4" />
-              Parse Message
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Parse Message
+                </>
+              )}
             </button>
+            {error && (
+              <div className="mt-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-xs text-red-400">{error}</p>
+              </div>
+            )}
           </div>
 
           <div className="bg-dark-card rounded-xl border border-dark-border p-6">

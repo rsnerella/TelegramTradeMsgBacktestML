@@ -1,0 +1,34 @@
+# FastAPI Backtest Backend Dependencies
+# ======================================
+
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.3
+
+# Telegram
+telethon==1.38.1
+
+# Database
+sqlalchemy==2.0.36
+
+# Historical Data
+yfinance==0.2.50
+
+# Environment
+python-dotenv==1.0.1
+
+# HTTP Client
+httpx==0.28.1
+
+# Date/Time
+python-dateutil==2.9.0
+
+# Pandas (for data handling in backtest)
+pandas==2.2.3
+
+# Numpy (for calculations)
+numpy==2.2.1
+
+# Pytube (for additional data sources if needed)
+pytube==15.0.0
