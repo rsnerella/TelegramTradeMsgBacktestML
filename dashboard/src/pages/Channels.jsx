@@ -1,15 +1,29 @@
-import { channels, channelStats, signals } from '../data/mockData';
+import { useChannels } from '../hooks/useChannels';
+import { useStats } from '../hooks/useStats';
 import { Users, TrendingUp, DollarSign, Activity, Bell } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { useSignals } from '../hooks/useSignals';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316'];
 
 export default function Channels() {
-  const pieData = channels.map((channel, index) => ({
+  const { data: channels = [], loading: channelsLoading } = useChannels();
+  const { channelStats = [], loading: statsLoading } = useStats();
+  const { data: signals = [], loading: signalsLoading } = useSignals();
+
+  const isLoading = channelsLoading || statsLoading || signalsLoading;
+
+  const validChannels = channels.map((c, idx) => {
+    if (typeof c === 'string') return { name: c, subscribers: 0, id: idx };
+    return c;
+  });
+
+  const pieData = validChannels.map((channel, index) => ({
     name: channel.name,
     value: signals.filter(s => s.channel === channel.name).length,
-    subscribers: channel.subscribers,
-  }));
+    subscribers: channel.subscribers || 0,
+  })).filter(d => d.value > 0);
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -28,41 +42,45 @@ export default function Channels() {
     return null;
   };
 
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {channelStats.map((stat, index) => {
-          const channel = channels.find(c => c.name.replace(/_/g, '_') === stat.channel.replace(/_/g, '_')) || channels[index % channels.length];
+          const channel = validChannels.find(c => c.name?.replace(/_/g, ' ') === stat.channel?.replace(/_/g, ' ')) || validChannels[index % validChannels.length];
           return (
-            <div key={stat.channel} className="bg-dark-card rounded-xl border border-dark-border p-5 hover:border-accent-indigo/30 transition-colors">
+            <div key={stat.channel || index} className="bg-dark-card rounded-xl border border-dark-border p-5 hover:border-accent-indigo/30 transition-colors">
               <div className="flex items-start justify-between mb-4">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: colors[index % colors.length] + '30' }}>
                   <Activity className="w-5 h-5" style={{ color: colors[index % colors.length] }} />
                 </div>
-                <span className={`px-2 py-1 rounded text-xs font-mono ${stat.winRate >= 70 ? 'bg-green-500/20 text-green-400' : stat.winRate >= 60 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
-                  {stat.winRate.toFixed(1)}% WR
+                <span className={`px-2 py-1 rounded text-xs font-mono ${(stat.winRate || 0) >= 70 ? 'bg-green-500/20 text-green-400' : (stat.winRate || 0) >= 60 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-red-500/20 text-red-400'}`}>
+                  {(stat.winRate || 0).toFixed(1)}% WR
                 </span>
               </div>
-              <h3 className="text-sm font-semibold text-white mb-1 line-clamp-1">{stat.channel.replace('_', ' ')}</h3>
+              <h3 className="text-sm font-semibold text-white mb-1 line-clamp-1">{stat.channel ? stat.channel.replace(/_/g, ' ') : 'Unknown'}</h3>
               <div className="flex items-center gap-1 text-xs text-gray-500 mb-4">
                 <Users className="w-3 h-3" />
-                <span>{channel?.subscribers.toLocaleString() || 'N/A'} subscribers</span>
+                <span>{channel?.subscribers?.toLocaleString() || 'N/A'} subscribers</span>
               </div>
               <div className="space-y-2 pt-3 border-t border-dark-border">
                 <div className="flex justify-between items-baseline">
                   <span className="text-xs text-gray-500">Signals</span>
-                  <span className="font-mono text-sm text-white">{stat.totalSignals}</span>
+                  <span className="font-mono text-sm text-white">{stat.totalSignals || 0}</span>
                 </div>
                 <div className="flex justify-between items-baseline">
                   <span className="text-xs text-gray-500">Avg P&L</span>
-                  <span className={`font-mono text-sm ${stat.avgPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {stat.avgPnl >= 0 ? '+' : ''}₹{stat.avgPnl.toFixed(2)}
+                  <span className={`font-mono text-sm ${(stat.avgPnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {(stat.avgPnl || 0) >= 0 ? '+' : ''}₹{(stat.avgPnl || 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline">
                   <span className="text-xs text-gray-500">Total P&L</span>
-                  <span className={`font-mono text-sm ${stat.totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {stat.totalPnl >= 0 ? '+' : ''}₹{stat.totalPnl.toFixed(0)}
+                  <span className={`font-mono text-sm ${(stat.totalPnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {(stat.totalPnl || 0) >= 0 ? '+' : ''}₹{(stat.totalPnl || 0).toFixed(0)}
                   </span>
                 </div>
               </div>
@@ -114,25 +132,29 @@ export default function Channels() {
           <h3 className="text-lg font-semibold text-white mb-2">Signal Share</h3>
           <p className="text-sm text-gray-400 mb-6">Percentage of signals from each channel</p>
           <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
+            {pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name.split(' ')[0]} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500 text-sm">No signals available</div>
+            )}
           </div>
         </div>
       </div>
@@ -174,13 +196,13 @@ export default function Channels() {
               </tr>
             </thead>
             <tbody>
-              {channelStats
-                .sort((a, b) => b.totalPnl - a.totalPnl)
+              {[...channelStats]
+                .sort((a, b) => (b.totalPnl || 0) - (a.totalPnl || 0))
                 .map((stat, index) => {
-                  const channel = channels.find(c => c.name.replace(/_/g, '_') === stat.channel.replace(/_/g, '_')) || channels[index % channels.length];
-                  const isTopPerformer = index === 0;
+                  const channel = validChannels.find(c => c.name?.replace(/_/g, ' ') === stat.channel?.replace(/_/g, ' ')) || validChannels[index % validChannels.length];
+                  const isTopPerformer = index === 0 && (stat.totalPnl || 0) > 0;
                   return (
-                    <tr key={stat.channel} className={`border-b border-dark-border hover:bg-dark-lighter/50 transition-colors ${isTopPerformer ? 'bg-green-500/5' : ''}`}>
+                    <tr key={stat.channel || index} className={`border-b border-dark-border hover:bg-dark-lighter/50 transition-colors ${isTopPerformer ? 'bg-green-500/5' : ''}`}>
                       <td className="py-3 px-4">
                         <span className={`text-sm font-bold ${index < 3 ? 'text-white' : 'text-gray-400'}`}>
                           #{index + 1}
@@ -189,10 +211,10 @@ export default function Channels() {
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: colors[index % colors.length] }}>
-                            {stat.channel[0]}
+                            {stat.channel ? stat.channel[0] : '?'}
                           </div>
                           <div>
-                            <p className="font-medium text-white">{stat.channel.replace('_', ' ')}</p>
+                            <p className="font-medium text-white">{stat.channel ? stat.channel.replace(/_/g, ' ') : 'Unknown'}</p>
                             {isTopPerformer && (
                               <p className="text-xs text-green-400 flex items-center gap-1">
                                 <Bell className="w-3 h-3" />
@@ -204,39 +226,39 @@ export default function Channels() {
                       </td>
                       <td className="py-3 px-4">
                         <span className="font-mono text-sm text-gray-300">
-                          {channel?.subscribers.toLocaleString() || 'N/A'}
+                          {channel?.subscribers?.toLocaleString() || 'N/A'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex flex-col gap-1">
-                          <span className={`font-mono text-sm ${stat.winRate >= 70 ? 'text-green-400' : stat.winRate >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
-                            {stat.winRate.toFixed(1)}%
+                          <span className={`font-mono text-sm ${(stat.winRate || 0) >= 70 ? 'text-green-400' : (stat.winRate || 0) >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                            {(stat.winRate || 0).toFixed(1)}%
                           </span>
                           <div className="w-16 bg-dark-lighter rounded-full h-1">
                             <div
-                              className={`h-1 rounded-full ${stat.winRate >= 70 ? 'bg-green-500' : stat.winRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                              style={{ width: `${stat.winRate}%` }}
+                              className={`h-1 rounded-full ${(stat.winRate || 0) >= 70 ? 'bg-green-500' : (stat.winRate || 0) >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                              style={{ width: `${stat.winRate || 0}%` }}
                             />
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-mono text-sm text-white">{stat.totalSignals}</span>
+                        <span className="font-mono text-sm text-white">{stat.totalSignals || 0}</span>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`font-mono text-sm ${stat.totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {stat.totalPnl >= 0 ? '+' : ''}₹{stat.totalPnl.toFixed(0)}
+                        <span className={`font-mono text-sm ${(stat.totalPnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {(stat.totalPnl || 0) >= 0 ? '+' : ''}₹{(stat.totalPnl || 0).toFixed(0)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${
                           isTopPerformer
                             ? 'bg-green-500/10 text-green-400 border border-green-500/30'
-                            : stat.totalPnl >= 0
+                            : (stat.totalPnl || 0) >= 0
                             ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
                             : 'bg-red-500/10 text-red-400 border border-red-500/30'
                         }`}>
-                          {isTopPerformer ? 'Recommended' : stat.totalPnl >= 0 ? 'Active' : 'Review'}
+                          {isTopPerformer ? 'Recommended' : (stat.totalPnl || 0) >= 0 ? 'Active' : 'Review'}
                         </span>
                       </td>
                     </tr>

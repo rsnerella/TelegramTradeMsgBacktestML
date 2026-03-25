@@ -1,5 +1,4 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { channelStats } from '../data/mockData';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -22,12 +21,20 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316'];
 
-export default function ChannelStats() {
-  const barData = channelStats.map((stat, index) => ({
-    name: stat.channel.replace('_', ' '),
-    winRate: stat.winRate,
-    totalPnl: stat.totalPnl,
-    totalSignals: stat.totalSignals,
+export default function ChannelStats({ data = [] }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-dark-card rounded-xl border border-dark-border p-6 h-full flex flex-col justify-center items-center text-gray-400">
+        No channel stats available
+      </div>
+    );
+  }
+
+  const barData = data.map((stat, index) => ({
+    name: stat.channel ? stat.channel.replace(/_/g, ' ') : 'Unknown',
+    winRate: stat.winRate || 0,
+    totalPnl: stat.totalPnl || 0,
+    totalSignals: stat.totalSignals || 0,
   }));
 
   return (
@@ -81,30 +88,30 @@ export default function ChannelStats() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mt-6">
-        {channelStats.map((stat, index) => (
+        {data.map((stat, index) => (
           <div
-            key={stat.channel}
+            key={stat.channel || index}
             className="bg-dark-lighter rounded-lg p-4 border border-dark-border hover:border-accent-indigo/30 transition-colors"
           >
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-              <span className="text-xs text-gray-400 truncate">{stat.channel.replace('_', ' ')}</span>
+              <span className="text-xs text-gray-400 truncate">{stat.channel ? stat.channel.replace(/_/g, ' ') : 'Unknown'}</span>
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-baseline">
                 <span className="text-xs text-gray-500">Win Rate</span>
                 <span className={`font-mono text-sm ${stat.winRate >= 70 ? 'text-green-400' : stat.winRate >= 60 ? 'text-lime-400' : 'text-yellow-400'}`}>
-                  {stat.winRate.toFixed(1)}%
+                  {stat.winRate ? stat.winRate.toFixed(1) : 0}%
                 </span>
               </div>
               <div className="flex justify-between items-baseline">
                 <span className="text-xs text-gray-500">Signals</span>
-                <span className="font-mono text-sm text-white">{stat.totalSignals}</span>
+                <span className="font-mono text-sm text-white">{stat.totalSignals || 0}</span>
               </div>
               <div className="flex justify-between items-baseline">
                 <span className="text-xs text-gray-500">Total P&L</span>
-                <span className={`font-mono text-sm ${stat.totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {stat.totalPnl >= 0 ? '+' : ''}₹{stat.totalPnl.toFixed(0)}
+                <span className={`font-mono text-sm ${(stat.totalPnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {(stat.totalPnl || 0) >= 0 ? '+' : ''}₹{stat.totalPnl ? stat.totalPnl.toFixed(0) : 0}
                 </span>
               </div>
             </div>
