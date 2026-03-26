@@ -5,6 +5,9 @@ const metricConfig = {
   winRate: { icon: TrendingUp, label: 'Win Rate', color: 'from-emerald-500 to-emerald-600' },
   totalPnl: { icon: DollarSign, label: 'Total P&L', color: 'from-purple-500 to-purple-600' },
   openTrades: { icon: Clock, label: 'Open Trades', color: 'from-orange-500 to-orange-600' },
+  sharpeRatio: { icon: Activity, label: 'Sharpe Ratio', color: 'from-indigo-500 to-indigo-600' },
+  profitFactor: { icon: TrendingUp, label: 'Profit Factor', color: 'from-teal-500 to-teal-600' },
+  maxDrawdown: { icon: ArrowDown, label: 'Max Drawdown', color: 'from-red-500 to-red-600' },
 };
 
 export default function MetricCard({ metric, value, change, format = 'number' }) {
