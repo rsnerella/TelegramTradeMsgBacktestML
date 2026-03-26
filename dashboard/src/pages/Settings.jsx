@@ -11,6 +11,8 @@ import {
   Server,
   Shield,
 } from 'lucide-react';
+import { useChannels } from '../hooks/useChannels';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState('••••••••••••••••');
@@ -20,34 +22,48 @@ export default function Settings() {
   const [apiHash, setApiHash] = useState('••••••••••••••••••••••••••••••••');
   const [showApiHash, setShowApiHash] = useState(false);
 
-  const [channels, setChannels] = useState([
-    { id: 1, name: 'NSE_Signals_Pro', enabled: true },
-    { id: 2, name: 'StockGuru_India', enabled: true },
-    { id: 3, name: 'Options_Alpha', enabled: true },
-    { id: 4, name: 'Intraday_Calls', enabled: false },
-    { id: 5, name: 'BankNifty_Calls', enabled: true },
-  ]);
+  // Hook for channels
+  const { data: fetchedChannels, loading, addChannel: addChannelApi } = useChannels();
+  const [localChannelOverrides, setLocalChannelOverrides] = useState({});
+
+  const channels = fetchedChannels.map((ch, idx) => {
+    // Handle both string array or object array from API
+    const isString = typeof ch === 'string';
+    const id = isString ? ch : (ch.id || idx);
+    const name = isString ? ch : ch.name;
+    const enabled = isString ? true : (ch.enabled !== false);
+    
+    return {
+      id,
+      name,
+      enabled: localChannelOverrides[id] !== undefined ? localChannelOverrides[id] : enabled,
+    };
+  });
 
   const [confidenceThreshold, setConfidenceThreshold] = useState(75);
   const [newChannel, setNewChannel] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
   const toggleChannel = (id) => {
-    setChannels(channels.map((ch) =>
-      ch.id === id ? { ...ch, enabled: !ch.enabled } : ch
-    ));
+    setLocalChannelOverrides(prev => ({ ...prev, [id]: !channels.find(c => c.id === id).enabled }));
   };
 
   const removeChannel = (id) => {
-    setChannels(channels.filter((ch) => ch.id !== id));
+    // API doesn't support remove yet, just update local state visually if needed
+    // or you can implement DELETE /channels in api.js later
+    alert('Remove channel functionality is pending backend support.');
   };
 
-  const addChannel = () => {
-    if (newChannel.trim()) {
-      setChannels([
-        ...channels,
-        { id: Date.now(), name: newChannel.trim(), enabled: true },
-      ]);
-      setNewChannel('');
+  const handleAddChannel = async () => {
+    if (newChannel.trim() && !isAdding) {
+      setIsAdding(true);
+      const success = await addChannelApi(newChannel.trim());
+      if (success) {
+        setNewChannel('');
+      } else {
+        alert('Failed to add channel. Ensure backend is running.');
+      }
+      setIsAdding(false);
     }
   };
 
@@ -71,6 +87,16 @@ export default function Settings() {
           </div>
 
           <div className="space-y-5">
+            <div className="bg-indigo-900/30 border border-indigo-500/50 rounded-lg p-4 mb-4">
+              <h4 className="text-sm font-semibold text-indigo-400 mb-2">Setup Instructions</h4>
+              <ol className="list-decimal list-inside text-xs text-indigo-200/70 space-y-1">
+                <li>Go to <a href="https://my.telegram.org" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">my.telegram.org</a> and log in.</li>
+                <li>Go to "API development tools" and create a new application.</li>
+                <li>Copy the generated `api_id` and `api_hash` below.</li>
+                <li>Create a bot via <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">@BotFather</a> to get your Token.</li>
+              </ol>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">API ID</label>
               <div className="relative">
@@ -88,7 +114,6 @@ export default function Settings() {
                   {showApiId ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Get your API ID from my.telegram.org</p>
             </div>
 
             <div>
@@ -127,12 +152,11 @@ export default function Settings() {
                   {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Create a bot via @BotFather on Telegram</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-dark-card rounded-xl border border-dark-border p-6">
+        <div className="bg-dark-card rounded-xl border border-dark-border p-6 flex flex-col">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
               <Bell className="w-5 h-5 text-white" />
@@ -148,50 +172,58 @@ export default function Settings() {
               type="text"
               value={newChannel}
               onChange={(e) => setNewChannel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addChannel()}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddChannel()}
               className="flex-1 bg-dark-lighter border border-dark-border rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-accent-indigo/50"
               placeholder="Enter channel name (e.g., @NSE_Signals)"
+              disabled={isAdding}
             />
             <button
-              onClick={addChannel}
-              className="bg-accent-indigo hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+              onClick={handleAddChannel}
+              disabled={isAdding}
+              className="bg-accent-indigo hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
-              Add
+              {isAdding ? 'Adding...' : 'Add'}
             </button>
           </div>
 
-          <div className="space-y-2 max-h-80 overflow-y-auto">
-            {channels.map((channel) => (
-              <div
-                key={channel.id}
-                className="bg-dark-lighter rounded-lg p-4 border border-dark-border flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => toggleChannel(channel.id)}
-                    className={`w-10 h-6 rounded-full transition-colors ${
-                      channel.enabled ? 'bg-green-500' : 'bg-gray-600'
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                        channel.enabled ? 'translate-x-5' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                  <span className={`font-medium ${channel.enabled ? 'text-white' : 'text-gray-500'}`}>
-                    {channel.name}
-                  </span>
-                </div>
-                <button
-                  onClick={() => removeChannel(channel.id)}
-                  className="text-gray-500 hover:text-red-400 transition-colors"
+          <div className="space-y-2 flex-1 overflow-y-auto min-h-[200px]">
+            {loading ? (
+              <LoadingSpinner />
+            ) : channels.length === 0 ? (
+              <p className="text-center text-gray-500 text-sm py-8">No channels mapped yet.</p>
+            ) : (
+              channels.map((channel) => (
+                <div
+                  key={channel.id}
+                  className="bg-dark-lighter rounded-lg p-4 border border-dark-border flex items-center justify-between"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => toggleChannel(channel.id)}
+                      className={`w-10 h-6 rounded-full transition-colors ${
+                        channel.enabled ? 'bg-green-500' : 'bg-gray-600'
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                          channel.enabled ? 'translate-x-5' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className={`font-medium ${channel.enabled ? 'text-white' : 'text-gray-500'}`}>
+                      {channel.name}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => removeChannel(channel.id)}
+                    className="text-gray-500 hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -258,7 +290,7 @@ export default function Settings() {
               <label className="block text-sm font-medium text-gray-300 mb-2">API Endpoint</label>
               <input
                 type="text"
-                defaultValue="http://localhost:5000/api"
+                defaultValue={import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"}
                 className="w-full bg-dark-lighter border border-dark-border rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-accent-indigo/50"
               />
             </div>

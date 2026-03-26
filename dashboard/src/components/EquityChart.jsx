@@ -1,5 +1,4 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { equityData } from '../data/mockData';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -15,10 +14,18 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-export default function EquityChart() {
-  const initialValue = equityData[0].equity;
-  const finalValue = equityData[equityData.length - 1].equity;
-  const totalReturn = ((finalValue - initialValue) / initialValue) * 100;
+export default function EquityChart({ data = [] }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-dark-card rounded-xl border border-dark-border p-6 h-full flex flex-col justify-center items-center text-gray-400">
+        No equity data available
+      </div>
+    );
+  }
+
+  const initialValue = data[0]?.equity || 0;
+  const finalValue = data[data.length - 1]?.equity || 0;
+  const totalReturn = initialValue ? ((finalValue - initialValue) / initialValue) * 100 : 0;
 
   return (
     <div className="bg-dark-card rounded-xl border border-dark-border p-6">
@@ -43,7 +50,7 @@ export default function EquityChart() {
 
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={equityData}>
+          <AreaChart data={data}>
             <defs>
               <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>

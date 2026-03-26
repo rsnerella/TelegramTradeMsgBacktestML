@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Bot, Sparkles, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { nerMessages } from '../data/mockData';
+import { useState, useEffect } from 'react';
+import { Bot, Sparkles, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
+import { classifyMessage } from '../api/ner';
 
 const entityColors = {
   STOCK: { bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/40' },
@@ -18,14 +19,45 @@ const confidenceLevels = {
 };
 
 export default function NERParser() {
-  const [selectedMessage, setSelectedMessage] = useState(nerMessages[0]);
+  const [nerMessages, setNerMessages] = useState([]);
+  const [selectedMessage, setSelectedMessage] = useState(null);
   const [newMessage, setNewMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchMessages = async () => {
+      try {
+        const msgs = await api.getRawMessages();
+        if (mounted && msgs) {
+          // Normalize API messages to match the expected format if needed
+          const formatted = msgs.map(m => ({
+            id: m.id || Date.now() + Math.random(),
+            rawMessage: m.text || m.rawMessage || '',
+            channel: m.channel || 'Unknown',
+            timestamp: m.timestamp || new Date().toISOString(),
+            entities: m.entities || []
+          }));
+          setNerMessages(formatted);
+          if (formatted.length > 0) {
+            setSelectedMessage(formatted[0]);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+      }
+    };
+    fetchMessages();
+    return () => { mounted = false; };
+  }, []);
 
   const renderHighlightedMessage = (message) => {
+    if (!message) return null;
     let highlightedText = [];
     let lastIndex = 0;
 
-    const sortedEntities = [...message.entities].sort((a, b) => a.start - b.start);
+    const sortedEntities = [...(message.entities || [])].sort((a, b) => a.start - b.start);
 
     for (const entity of sortedEntities) {
       if (entity.start > lastIndex) {
@@ -36,12 +68,12 @@ export default function NERParser() {
         );
       }
 
-      const colors = entityColors[entity.type];
+      const colors = entityColors[entity.type] || entityColors.ACTION;
       highlightedText.push(
         <span
           key={`entity-${entity.start}`}
           className={`px-1.5 py-0.5 rounded ${colors.bg} ${colors.text} border ${colors.border} font-mono text-sm cursor-help`}
-          title={`${entity.type} (${(entity.confidence * 100).toFixed(0)}%)`}
+          title={`${entity.type} (${((entity.confidence || 0) * 100).toFixed(0)}%)`}
         >
           {message.rawMessage.substring(entity.start, entity.end)}
         </span>
@@ -50,7 +82,7 @@ export default function NERParser() {
       lastIndex = entity.end;
     }
 
-    if (lastIndex < message.rawMessage.length) {
+    if (lastIndex < (message.rawMessage?.length || 0)) {
       highlightedText.push(
         <span key={`text-${lastIndex}`} className="text-gray-300">
           {message.rawMessage.substring(lastIndex)}
@@ -67,65 +99,74 @@ export default function NERParser() {
     return confidenceLevels.low;
   };
 
-  const parseNewMessage = () => {
-    // Simulate NER parsing
-    const parseResult = {
-      id: Date.now(),
-      rawMessage: newMessage,
-      entities: [],
-      timestamp: new Date().toISOString(),
-      channel: 'Manual',
-      processed: true,
-    };
+  const parseNewMessage = async () => {
+    setIsLoading(true);
+    setError(null);
 
-    // Simple regex-based parsing for demo
-    const buySellMatch = newMessage.match(/(BUY|SELL)/i);
-    if (buySellMatch) {
-      parseResult.entities.push({
-        type: 'ACTION',
-        text: buySellMatch[0].toUpperCase(),
-        confidence: 0.95,
-        start: buySellMatch.index,
-        end: buySellMatch.index + buySellMatch[0].length,
-      });
+    try {
+      const result = await classifyMessage(newMessage);
+
+      // Parse the API response
+      const sentence = JSON.parse(result.sentence);
+      const sentenceClass = JSON.parse(result.sentence_class);
+      const sentenceClassName = JSON.parse(result.sentence_class_name);
+
+      // Build entities from API response
+      const entities = [];
+      let currentPos = 0;
+
+      for (let i = 0; i < sentence.length; i++) {
+        const word = sentence[i];
+        const className = sentenceClassName[i];
+
+        if (className && className !== '') {
+          const startPos = newMessage.indexOf(word, currentPos);
+          if (startPos !== -1) {
+            entities.push({
+              type: mapClassNameToEntityType(className),
+              text: word,
+              confidence: 0.85,
+              start: startPos,
+              end: startPos + word.length,
+            });
+            currentPos = startPos + word.length;
+          }
+        }
+      }
+
+      const parseResult = {
+        id: Date.now(),
+        rawMessage: newMessage,
+        entities,
+        timestamp: new Date().toISOString(),
+        channel: 'API',
+        processed: true,
+      };
+
+      setSelectedMessage(parseResult);
+      setNerMessages(prev => [parseResult, ...prev]);
+      setNewMessage('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const stockMatch = newMessage.match(/[A-Z]{2,}/g);
-    stockMatch?.forEach((stock) => {
-      if (stock !== 'BUY' && stock !== 'SELL' && stock !== 'SL' && stock !== 'ABOVE' && stock !== 'BELOW') {
-        parseResult.entities.push({
-          type: 'STOCK',
-          text: stock,
-          confidence: 0.88,
-          start: newMessage.indexOf(stock),
-          end: newMessage.indexOf(stock) + stock.length,
-        });
-      }
-    });
-
-    const priceMatches = [...newMessage.matchAll(/\d+(?:\.\d+)?/g)];
-    let priceIndex = 0;
-    priceMatches.forEach((match) => {
-      const price = parseFloat(match[0]);
-      if (price > 10 && price < 50000) {
-        let type = 'ENTRY';
-        if (newMessage.toLowerCase().includes('sl') && priceIndex === 1) type = 'SL';
-        else if (priceIndex === 1) type = 'TARGET';
-        else if (priceIndex >= 2) type = 'TARGET';
-
-        parseResult.entities.push({
-          type,
-          text: match[0],
-          confidence: 0.85,
-          start: match.index,
-          end: match.index + match[0].length,
-        });
-        priceIndex++;
-      }
-    });
-
-    setSelectedMessage(parseResult);
-    setNewMessage('');
+  const mapClassNameToEntityType = (className) => {
+    const mapping = {
+      'symbol': 'STOCK',
+      'btst': 'ACTION',
+      'delivery': 'ACTION',
+      'enter': 'ENTRY',
+      'exit': 'ACTION',
+      'exit2': 'ACTION',
+      'exit3': 'ACTION',
+      'intraday': 'ACTION',
+      'sl': 'SL',
+      'momentum': 'CONFIDENCE',
+    };
+    return mapping[className] || 'ACTION';
   };
 
   return (
@@ -148,52 +189,64 @@ export default function NERParser() {
             </div>
           </div>
 
-          <div className="bg-dark-lighter rounded-lg p-4 mb-6 border border-dark-border">
-            <p className="font-mono text-sm leading-relaxed">
-              {renderHighlightedMessage(selectedMessage)}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div>
-              <p className="text-xs text-gray-500 mb-2">Channel</p>
-              <p className="text-sm text-white">{selectedMessage.channel}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-2">Timestamp</p>
-              <p className="text-sm text-white font-mono">
-                {new Date(selectedMessage.timestamp).toLocaleString('en-IN', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
+          <div className="bg-dark-lighter rounded-lg p-4 mb-6 border border-dark-border min-h-[100px]">
+            {selectedMessage ? (
+              <p className="font-mono text-sm leading-relaxed">
+                {renderHighlightedMessage(selectedMessage)}
               </p>
-            </div>
+            ) : (
+              <p className="text-gray-500 text-sm text-center mt-4">No message selected or available</p>
+            )}
           </div>
 
-          <div>
-            <p className="text-xs text-gray-500 mb-3">Extracted Entities</p>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {selectedMessage.entities.map((entity, index) => {
-                const { bg, text, border } = entityColors[entity.type];
-                const level = getConfidenceLevel(entity.confidence);
-                const Icon = level.icon;
-                return (
-                  <div key={index} className={`p-3 rounded-lg border ${bg} ${border}`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-xs font-medium ${text}`}>{entity.type}</span>
-                      <Icon className={`w-3 h-3 ${level.color}`} />
-                    </div>
-                    <p className="text-sm font-semibold text-white font-mono">{entity.text}</p>
-                    <p className="text-xs mt-1 text-gray-400">
-                      {level.label} ({(entity.confidence * 100).toFixed(0)}%)
-                    </p>
+          {selectedMessage && (
+            <>
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Channel</p>
+                  <p className="text-sm text-white">{selectedMessage.channel}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Timestamp</p>
+                  <p className="text-sm text-white font-mono">
+                    {new Date(selectedMessage.timestamp).toLocaleString('en-IN', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs text-gray-500 mb-3">Extracted Entities</p>
+                {selectedMessage.entities && selectedMessage.entities.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {selectedMessage.entities.map((entity, index) => {
+                      const colors = entityColors[entity.type] || entityColors.ACTION;
+                      const level = getConfidenceLevel(entity.confidence || 0.85);
+                      const Icon = level.icon;
+                      return (
+                        <div key={index} className={`p-3 rounded-lg border ${colors.bg} ${colors.border}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-xs font-medium ${colors.text}`}>{entity.type}</span>
+                            <Icon className={`w-3 h-3 ${level.color}`} />
+                          </div>
+                          <p className="text-sm font-semibold text-white font-mono">{entity.text}</p>
+                          <p className="text-xs mt-1 text-gray-400">
+                            {level.label} ({((entity.confidence || 0.85) * 100).toFixed(0)}%)
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No entities extracted.</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -211,31 +264,49 @@ TARGET 2750"
             />
             <button
               onClick={parseNewMessage}
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || isLoading}
               className="w-full mt-3 bg-accent-indigo hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
-              <Sparkles className="w-4 h-4" />
-              Parse Message
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Parse Message
+                </>
+              )}
             </button>
+            {error && (
+              <div className="mt-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                <p className="text-xs text-red-400">{error}</p>
+              </div>
+            )}
           </div>
 
           <div className="bg-dark-card rounded-xl border border-dark-border p-6">
             <h3 className="text-sm font-semibold text-white mb-4">Message History</h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {nerMessages.map((msg) => (
-                <button
-                  key={msg.id}
-                  onClick={() => setSelectedMessage(msg)}
-                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                    selectedMessage?.id === msg.id
-                      ? 'bg-accent-indigo/20 border-accent-indigo/50'
-                      : 'bg-dark-lighter border-dark-border hover:border-dark-border hover:bg-dark-lighter/50'
-                  }`}
-                >
-                  <p className="text-xs text-gray-400 mb-1">{msg.channel}</p>
-                  <p className="text-sm text-white line-clamp-2">{msg.rawMessage.slice(0, 50)}...</p>
-                </button>
-              ))}
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+              {nerMessages.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">No recent messages</p>
+              ) : (
+                nerMessages.map((msg) => (
+                  <button
+                    key={msg.id}
+                    onClick={() => setSelectedMessage(msg)}
+                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                      selectedMessage?.id === msg.id
+                        ? 'bg-accent-indigo/20 border-accent-indigo/50'
+                        : 'bg-dark-lighter border-dark-border hover:border-dark-border hover:bg-dark-lighter/50'
+                    }`}
+                  >
+                    <p className="text-xs text-gray-400 mb-1">{msg.channel}</p>
+                    <p className="text-sm text-white line-clamp-2">{msg.rawMessage?.slice(0, 50)}...</p>
+                  </button>
+                ))
+              )}
             </div>
           </div>
 

@@ -1,0 +1,58 @@
+
+> telegram-trade-dashboard@0.0.0 build
+> vite build
+
+[36mvite v8.0.2 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...Error: Can't resolve './tailwind.config.js' in 'C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\src'
+    at finishWithoutResolve (C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\enhanced-resolve\lib\Resolver.js:587:18)
+    at C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\enhanced-resolve\lib\Resolver.js:679:14
+    at C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\enhanced-resolve\lib\Resolver.js:740:5
+    at eval (eval at create (C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\tapable\lib\HookCodeFactory.js:31:10), <anonymous>:15:1)
+    at C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\enhanced-resolve\lib\Resolver.js:740:5
+    at eval (eval at create (C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\tapable\lib\HookCodeFactory.js:31:10), <anonymous>:27:1)
+    at C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\enhanced-resolve\lib\DescriptionFilePlugin.js:89:43
+    at C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\enhanced-resolve\lib\Resolver.js:740:5
+    at eval (eval at create (C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\tapable\lib\HookCodeFactory.js:31:10), <anonymous>:15:1)
+    at C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\enhanced-resolve\lib\Resolver.js:740:5 {
+  details: "resolve './tailwind.config.js' in 'C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\src'\n" +
+    '  using description file: C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\package.json (relative path: ./src)\n' +
+    '    using description file: C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\package.json (relative path: ./src/tailwind.config.js)\n' +
+    '      no extension\n' +
+    "        C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\src\\tailwind.config.js doesn't exist\n" +
+    '      .js\n' +
+    "        C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\src\\tailwind.config.js.js doesn't exist\n" +
+    '      .json\n' +
+    "        C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\src\\tailwind.config.js.json doesn't exist\n" +
+    '      .node\n' +
+    "        C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\src\\tailwind.config.js.node doesn't exist\n" +
+    '      .ts\n' +
+    "        C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\src\\tailwind.config.js.ts doesn't exist\n" +
+    '      as directory\n' +
+    "        C:\\Users\\umang khunt\\Desktop\\work\\TelegramTradeMsgBacktestML\\dashboard\\src\\tailwind.config.js doesn't exist"
+}
+✓ 2314 modules transformed.
+[31m✗[39m Build failed in 1.07s
+[31merror during build:
+[31mBuild failed with 1 error:
+
+[plugin vite:css] C:/Users/umang khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/src/index.css:1:0
+CssSyntaxError: [postcss] tailwindcss: C:/Users/umang khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/src/index.css:1:1: Can't resolve './tailwind.config.js' in 'C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\src'
+    at Input.error (C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\postcss\lib\input.js:135:16)
+    at Root.error (C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\postcss\lib\node.js:146:32)
+    at Object.Once (C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\@tailwindcss\postcss\dist\index.js:10:6913)
+    at async LazyResult.runAsync (C:\Users\umang khunt\Desktop\work\TelegramTradeMsgBacktestML\dashboard\node_modules\postcss\lib\lazy-result.js:293:11)
+    at async runPostCSS (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/vite/dist/node/chunks/node.js:20944:19)
+    at async compilePostCSS (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/vite/dist/node/chunks/node.js:20928:6)
+    at async compileCSS (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/vite/dist/node/chunks/node.js:20858:26)
+    at async TransformPluginContextImpl.handler (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/vite/dist/node/chunks/node.js:20374:47)
+    at async plugin (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/rolldown/dist/shared/bindingify-input-options-DVAZE22h.mjs:1129:16)
+    at async plugin.<computed> (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/rolldown/dist/shared/bindingify-input-options-DVAZE22h.mjs:1593:12)[31m
+    at aggregateBindingErrorsIntoJsError (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/rolldown/dist/shared/error-D8cGyrC7.mjs:48:18)
+    at unwrapBindingResult (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/rolldown/dist/shared/error-D8cGyrC7.mjs:18:128)
+    at #build (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/rolldown/dist/shared/rolldown-build-CL9PyQ2E.mjs:3313:34)
+    at async buildEnvironment (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/vite/dist/node/chunks/node.js:32829:64)
+    at async Object.build (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/vite/dist/node/chunks/node.js:33251:19)
+    at async Object.buildApp (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/vite/dist/node/chunks/node.js:33248:153)
+    at async CAC.<anonymous> (file:///C:/Users/umang%20khunt/Desktop/work/TelegramTradeMsgBacktestML/dashboard/node_modules/vite/dist/node/cli.js:778:3) {
+  errors: [Getter/Setter]
+}[39m

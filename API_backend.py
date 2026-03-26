@@ -1,4 +1,6 @@
+import os
 from flask import Flask, jsonify
+from flask_cors import CORS
 from flask_restful import Api, Resource, reqparse
 import pickle
 import pandas as pd
@@ -100,14 +102,23 @@ def get_class_map_from_message_NEW(input_message:str) -> dict:
 
 
 app = Flask(__name__)
+CORS(app)
 api = Api(app)
+
+# Health check endpoint
+class HealthCheck(Resource):
+    def get(self):
+        return jsonify({'status': 'healthy', 'model': 'loaded'})
+
+api.add_resource(HealthCheck, '/health')
 
 # Create parser for the payload data
 parser = reqparse.RequestParser()
 parser.add_argument('data')
 def convert(o):
-    if isinstance(o, np.generic): return o.item()  
+    if isinstance(o, np.generic): return o.item()
     raise TypeError
+
 # Define how the api will respond to the post requests
 class MessageNER(Resource):
     def post(self):
@@ -120,8 +131,21 @@ class MessageNER(Resource):
 api.add_resource(MessageNER, '/classifyner')
 
 if __name__ == '__main__':
-    ###### LOAD PRETRAINED MODEL FROM HUGGINGFACE autoTrain #################
-    model = AutoModelForTokenClassification.from_pretrained("hemangjoshi37a/autotrain-ratnakar_1000_sample_curated-1474454086", use_auth_token=True)
-    tokenizer = AutoTokenizer.from_pretrained("hemangjoshi37a/autotrain-ratnakar_1000_sample_curated-1474454086", use_auth_token=True)
+    from dotenv import load_dotenv
+    load_dotenv()
 
-    app.run(debug=True,port=3737)
+    ###### LOAD PRETRAINED MODEL FROM HUGGINGFACE autoTrain #################
+    model_id = os.getenv('HUGGINGFACE_MODEL_ID', 'hemangjoshi37a/autotrain-ratnakar_1000_sample_curated-1474454086')
+    hf_token = os.getenv('HUGGINGFACE_TOKEN')
+
+    model_kwargs = {}
+    if hf_token:
+        model_kwargs['token'] = hf_token
+
+    model = AutoModelForTokenClassification.from_pretrained(model_id, **model_kwargs)
+    tokenizer = AutoTokenizer.from_pretrained(model_id, **model_kwargs)
+
+    port = int(os.getenv('FLASK_PORT', 3737))
+    debug = os.getenv('FLASK_DEBUG', 'True').lower() == 'true'
+
+    app.run(debug=debug, port=port)
