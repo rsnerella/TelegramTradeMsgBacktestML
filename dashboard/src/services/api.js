@@ -72,5 +72,37 @@ export const api = {
     return await fetchWithHandling('/backtest/run', {
       method: 'POST',
     });
+  },
+
+  runBacktestAll: async () => {
+    return await fetchWithHandling('/backtest/run-all', {
+      method: 'POST',
+    });
+  },
+
+  runBacktestSingle: async (id) => {
+    return await fetchWithHandling(`/backtest/run/${id}`, {
+      method: 'POST',
+    });
+  },
+
+  getBacktestResults: async () => {
+    const data = await fetchWithHandling('/backtest/results');
+    return data || [];
+  },
+
+  getBacktestSummary: async () => {
+    const data = await fetchWithHandling('/backtest/summary');
+    return data || {};
+  },
+
+  getBestStocks: async () => {
+    const data = await fetchWithHandling('/backtest/best-stocks');
+    return data || [];
+  },
+
+  getWorstStocks: async () => {
+    const data = await fetchWithHandling('/backtest/worst-stocks');
+    return data || [];
   }
 };

@@ -52,11 +52,16 @@ from telegram_client import (
     get_user_channels
 )
 from backtest import (
+from backtest import (
     BacktestEngine,
+    run_single_backtest,
+    run_all_backtest,
+    get_backtest_summary,
     backtest_single_signal,
     backtest_open_signals,
     get_equity_data
 )
+from export_service import exporter
 
 
 # Initialize FastAPI app
@@ -575,6 +580,85 @@ async def run_backtest(request: BacktestRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Backtest failed: {str(e)}")
 
+@app.post("/backtest/run-all")
+async def run_backtest_all():
+    """Run backtest for all open signals"""
+    try:
+        return run_all_backtest()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Backtest failed: {str(e)}")
+
+@app.post("/backtest/run/{id}")
+async def run_backtest_single(id: int):
+    """Run backtest for single signal"""
+    try:
+        return run_single_backtest(id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Backtest failed: {str(e)}")
+
+@app.get("/backtest/results")
+async def get_backtest_results(db: SessionLocal = Depends(get_db)):
+    """Get all completed backtest results with details"""
+    # Fetch signals that have a backtest result
+    signals = db.query(Signal).filter(Signal.status.in_(['TARGET_HIT', 'SL_HIT', 'EXPIRED'])).order_by(Signal.exit_time.desc()).all()
+    results = []
+    for s in signals:
+        results.append({
+            "stock": s.stock,
+            "action": s.action,
+            "entry": s.entry_price,
+            "exit": s.exit_price,
+            "pnl": s.pnl,
+            "exit_reason": s.exit_reason,
+            "days_held": (s.exit_time - s.entry_time).days if s.exit_time and s.entry_time else 0,
+            "status": s.status,
+            "entry_time": s.entry_time,
+            "exit_time": s.exit_time
+        })
+    return results
+
+@app.get("/backtest/summary")
+async def get_summary_metrics():
+    """Get advanced backtest metrics"""
+    return get_backtest_summary()
+
+@app.get("/backtest/best-stocks")
+async def get_best_stocks(db: SessionLocal = Depends(get_db)):
+    """Top 5 performing stocks"""
+    signals = db.query(Signal).filter(Signal.status.in_(['TARGET_HIT', 'SL_HIT', 'EXPIRED'])).all()
+    stock_pnl = {}
+    for s in signals:
+        if s.stock:
+            stock_pnl[s.stock] = stock_pnl.get(s.stock, 0) + (s.pnl or 0)
+    
+    sorted_stocks = sorted(stock_pnl.items(), key=lambda x: x[1], reverse=True)
+    return [{"stock": k, "pnl": round(v, 2)} for k, v in sorted_stocks[:5]]
+
+@app.get("/backtest/worst-stocks")
+async def get_worst_stocks(db: SessionLocal = Depends(get_db)):
+    """Bottom 5 performing stocks"""
+    signals = db.query(Signal).filter(Signal.status.in_(['TARGET_HIT', 'SL_HIT', 'EXPIRED'])).all()
+    stock_pnl = {}
+    for s in signals:
+        if s.stock:
+            stock_pnl[s.stock] = stock_pnl.get(s.stock, 0) + (s.pnl or 0)
+    
+    sorted_stocks = sorted(stock_pnl.items(), key=lambda x: x[1])
+    return [{"stock": k, "pnl": round(v, 2)} for k, v in sorted_stocks[:5]]
+
+
+@app.get("/backtest/export/csv")
+async def export_backtest_csv(db: SessionLocal = Depends(get_db)):
+    """Export all backtest results as a CSV file"""
+    csv_data = exporter.generate_backtest_csv(db)
+    
+    from fastapi.responses import StreamingResponse
+    import io
+    
+    stream = io.StringIO(csv_data)
+    response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=benchmark_results.csv"
+    return response
 
 # ==================== RAW MESSAGES ENDPOINTS ====================
 

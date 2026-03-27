@@ -32,7 +32,7 @@ export default function Settings() {
     const id = isString ? ch : (ch.id || idx);
     const name = isString ? ch : ch.name;
     const enabled = isString ? true : (ch.enabled !== false);
-    
+
     return {
       id,
       name,
@@ -201,14 +201,12 @@ export default function Settings() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => toggleChannel(channel.id)}
-                      className={`w-10 h-6 rounded-full transition-colors ${
-                        channel.enabled ? 'bg-green-500' : 'bg-gray-600'
-                      }`}
+                      className={`w-10 h-6 rounded-full transition-colors ${channel.enabled ? 'bg-green-500' : 'bg-gray-600'
+                        }`}
                     >
                       <div
-                        className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                          channel.enabled ? 'translate-x-5' : 'translate-x-1'
-                        }`}
+                        className={`w-4 h-4 bg-white rounded-full transition-transform ${channel.enabled ? 'translate-x-5' : 'translate-x-1'
+                          }`}
                       />
                     </button>
                     <span className={`font-medium ${channel.enabled ? 'text-white' : 'text-gray-500'}`}>
